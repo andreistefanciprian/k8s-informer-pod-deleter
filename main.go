@@ -117,38 +117,34 @@ func main() {
 
 // Handler function to process new events
 func onAdd(newObj interface{}) {
-	item := newObj.(*corev1.Event)
-	// Check if the event reason and message match the configured values
-	if item.Reason == eventReason && strings.Contains(item.Message, eventMessage) {
-		log.Printf(
-			"ADD ResVer(%s): Sending Pod %s/%s to the podDeleteQueue.\n",
-			item.GetResourceVersion(),
-			item.InvolvedObject.Namespace,
-			item.InvolvedObject.Name,
-		)
-		// Put the Pod in the deletion queue
-		podDeleteQueue <- PodToDelete{
-			Namespace: item.InvolvedObject.Namespace,
-			Name:      item.InvolvedObject.Name,
-		}
-	}
+	event := newObj.(*corev1.Event)
+	processEvent(event, "NEW EVENT")
 }
 
 // Handler function to process updated events
 func onUpdate(old, new interface{}) {
 	// oldEvent := old.(*corev1.Event)
-	item := new.(*corev1.Event)
+	event := new.(*corev1.Event)
+	processEvent(event, "UPDATED EVENT")
+}
+
+func processEvent(event *corev1.Event, eventType string) {
 	// Check if the event reason and message match the configured values
-	if item.Reason == eventReason && strings.Contains(item.Message, eventMessage) {
+	if event.Reason == eventReason && strings.Contains(event.Message, eventMessage) {
+		podName := event.GetName()
+		podNamespace := event.GetNamespace()
+		eventResourceVersion := event.GetResourceVersion()
 		log.Printf(
-			"UPDATED ResVer(%s): Sending Pod %s/%s to the podDeleteQueue.\n",
-			item.GetResourceVersion(),
-			item.InvolvedObject.Namespace, item.InvolvedObject.Name,
+			"%s ResVer(%s): Sending Pod %s/%s to the podDeleteQueue.\n",
+			eventType,
+			eventResourceVersion,
+			podNamespace,
+			podName,
 		)
 		// Put the Pod in the deletion queue
 		podDeleteQueue <- PodToDelete{
-			Namespace: item.InvolvedObject.Namespace,
-			Name:      item.InvolvedObject.Name,
+			Namespace: podNamespace,
+			Name:      strings.Split(podName, ".")[0],
 		}
 	}
 }
